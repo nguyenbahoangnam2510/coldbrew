@@ -129,6 +129,13 @@ export function TestPanel() {
         { id: replyId, role: "assistant", content: "", created_at: new Date().toISOString() },
       ]);
 
+      if (!AGENT_ID) {
+        // Thiếu NEXT_PUBLIC_AGENT_ID thì đường gọi thành `/api/chat/` ⇒ trang 404.
+        // Chặn tại đây để người dùng thấy đúng nguyên nhân thay vì một đống HTML.
+        throw new Error(
+          "Bản triển khai này chưa cấu hình mã trợ lý (NEXT_PUBLIC_AGENT_ID). Đặt biến trên Vercel rồi Redeploy.",
+        );
+      }
       await stream(`/api/chat/${AGENT_ID}`, { method: "POST", body: JSON.stringify(body) }, (ev) => {
         if (ev.type === "delta") {
           acc += String(ev.content ?? "");

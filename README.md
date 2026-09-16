@@ -20,6 +20,10 @@ pnpm dev                       # http://localhost:3005
 | Biến | Bắt buộc | Việc |
 |---|---|---|
 | `PHENAU_URL` | không | Origin Phê Nâu cho cả API lẫn cổng đăng nhập. Mặc định production `https://phenau.com`, dev `http://localhost:3000` |
+
+> ⚠ `NEXT_PUBLIC_*` được gắn cứng lúc build. Thêm hoặc sửa xong phải **Redeploy** (bỏ chọn
+> build cache). Thiếu `NEXT_PUBLIC_AGENT_ID` thì tiêu đề tab hiện "Hộp thư" và Chat thử báo
+> chưa cấu hình mã trợ lý.
 | `APP_PASSWORD` | rollout cũ | Có giá trị ⇒ CHỈ hiện form mật khẩu dùng chung; xoá ⇒ CHỈ hiện nút đăng nhập tài khoản qua phenau.com |
 | `PHENAU_API_KEY` | rollout cũ | Key server-side dùng khi còn đăng nhập mật khẩu |
 | `SESSION_SECRET` | rollout cũ | Ký cookie mật khẩu, ≥32 ký tự |

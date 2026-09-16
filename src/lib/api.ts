@@ -21,6 +21,29 @@ export const API_PREFIX = "/api/py/v1";
  *  khoá). Về /sign-in ngay thay vì để màn hình kẹt với lỗi 401 ở từng ô. Chỉ theo header
  *  này, không theo mọi 401 — 401 vì lý do khác (vd API key legacy hỏng) mà cũng đá ra
  *  thì người dùng đăng nhập lại vẫn bị đá, thành vòng lặp. */
+/** Thông điệp lỗi NGẮN, an toàn để hiện thẳng lên giao diện.
+ *
+ *  16/09/2026: một bản triển khai thiếu `NEXT_PUBLIC_AGENT_ID` nên gọi `/api/chat/` (id rỗng).
+ *  Next trả trang 404 bằng HTML, còn khung "Chat thử" lấy nguyên thân phản hồi làm câu trả lời
+ *  ⇒ đổ vài nghìn ký tự HTML vào chat. Thân HTML KHÔNG BAO GIỜ là thông điệp cho người dùng:
+ *  nghĩa là gọi nhầm đường, không phải backend nói gì. */
+export function thongDiepLoi(status: number, raw: string): string {
+  const than = (raw || "").trim();
+  if (!than) return `HTTP ${status}`;
+  try {
+    const data = JSON.parse(than);
+    const chiTiet = data?.detail ?? data?.error;
+    if (typeof chiTiet === "string" && chiTiet.trim()) return `HTTP ${status}: ${chiTiet.trim()}`;
+  } catch {
+    /* không phải JSON — xử tiếp bên dưới */
+  }
+  if (/^\s*(<!doctype|<html|<)/i.test(than)) {
+    return `HTTP ${status}: máy chủ trả về một trang web thay vì dữ liệu (thường do gọi sai đường dẫn hoặc thiếu cấu hình).`;
+  }
+  const gon = than.replace(/\s+/g, " ");
+  return `HTTP ${status}: ${gon.length > 300 ? gon.slice(0, 300) + "…" : gon}`;
+}
+
 export function veDangNhapNeuHetPhien(res: Response): boolean {
   if (res.status !== 401 || res.headers.get("X-Coldbrew-Session") !== "expired") return false;
   if (typeof window !== "undefined") window.location.href = "/sign-in?error=session_expired";
@@ -48,14 +71,7 @@ export function makeApi() {
       // backend đã nói thẳng "API key missing scope: inbox:read" — mất câu đó thì
       // màn hình chỉ còn con số, và người trực phải đi đào DB mới biết vì sao.
       // Đã tốn đúng một buổi vì chuyện này ngày 20/08/2026.
-      const raw = await res.text().catch(() => "");
-      let chiTiet = raw;
-      try {
-        chiTiet = JSON.parse(raw)?.detail ?? JSON.parse(raw)?.error ?? raw;
-      } catch {
-        /* không phải JSON → dùng nguyên văn */
-      }
-      throw new Error(chiTiet ? `HTTP ${res.status}: ${chiTiet}` : `HTTP ${res.status}`);
+      throw new Error(thongDiepLoi(res.status, await res.text().catch(() => "")));
     }
     // 204 hoặc thân rỗng → đừng ép JSON.parse chuỗi rỗng.
     const text = await res.text();
@@ -87,7 +103,7 @@ export function makeStreamApi() {
     const res = await fetch(url, { ...init, headers });
     if (veDangNhapNeuHetPhien(res)) throw new Error("Phiên đăng nhập đã hết hạn");
     if (!res.ok || !res.body) {
-      throw new Error(`HTTP ${res.status}: ${await res.text().catch(() => "")}`.trim());
+      throw new Error(thongDiepLoi(res.status, await res.text().catch(() => "")));
     }
 
     const reader = res.body.getReader();
